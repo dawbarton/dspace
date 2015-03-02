@@ -42,6 +42,11 @@ classdef ntmd_interface < dspace_interface
             obj.add_dspace_var('mass', 'Labels/x2_abs');
             obj.add_dspace_var('force', 'Labels/LoadCell');
             
+            obj.add_dspace_var('base_centre', 'Model Root/cent_x1/Value');
+            obj.add_dspace_var('mass_centre', 'Model Root/cent_x2/Value');
+            
+            obj.add_dspace_var('run', 'Model Root/Start/Value');
+            
             % Indices into the array of Fourier variables
             n_coeff = length(obj.par.x_coeffs);
             obj.fourier.n_modes = (n_coeff - 1)/2;
@@ -59,14 +64,15 @@ classdef ntmd_interface < dspace_interface
             obj.opt.wait_time = 1; % Time (in secs) to wait for Fourier coefficients to settle
             obj.opt.max_waits = 10; % Maximum number of times to wait
             obj.opt.max_picard_iter = 5; % Maximum number of Picard iterations to do
-            obj.opt.x_coeffs_var_tol = 1e-3; % Maximum (normalised) variance of Fourier coefficients for steady-state behaviour
+            obj.opt.x_coeffs_var_tol_rel = 1e-3; % Maximum (normalised) variance of Fourier coefficients for steady-state behaviour
+            obj.opt.x_coeffs_var_tol_abs = 2e-3; % Maximum (absolute) variance of Fourier coefficients for steady-state behaviour
             obj.opt.x_coeffs_tol = 1e-1; % Maximum tolerance for difference between two Fourier coefficients (mm)
 
             % Data recording fields
             obj.datafields.stream_id = 1; % The stream to use for data recording (N/A)
             obj.datafields.static_fields = {'x_Kp', 'x_Kd', 'x_control', ...
                                 'base_Kp', 'base_Kd', 'base_control', ...
-                                'sample_freq'};
+                                'sample_freq', 'base_centre', 'mass_centre'};
             obj.datafields.dynamic_fields = {'forcing_freq', 'forcing_amp', ...
                                 'x_coeffs_ave', 'x_coeffs_var', ...
                                 'x_target_coeffs', ...
@@ -75,20 +81,20 @@ classdef ntmd_interface < dspace_interface
                                 'base', 'mass', 'force', 'out'}; 
             
             % Default control gains (that work!)
-            obj.par.base_Kp = -0.04;
-            obj.par.base_Kd = -0.004;
+            obj.par.base_Kp = 0.02;
+            obj.par.base_Kd = 0.001;
             obj.par.base_control = 1;
-            obj.par.x_Kp = -0.005;
-            obj.par.x_Kd = -0.0008;
+            obj.par.x_Kp = -0.008;
+            obj.par.x_Kd = -0.0004;
 
             % Create variables for averaging
             obj.opt.n_ave = 5;
-            obj.averaging.x_coeffs_ave = zeros(1, n_coeffs);
-            obj.averaging.x_coeffs_var = zeros(1, n_coeffs);
-            obj.averaging.x_coeffs_arr = zeros(obj.fourier.n_ave, n_coeffs);
-            obj.averaging.out_coeffs_ave = zeros(1, n_coeffs);
-            obj.averaging.out_coeffs_var = zeros(1, n_coeffs);
-            obj.averaging.out_coeffs_arr = zeros(obj.fourier.n_ave, n_coeffs);
+            obj.averaging.x_coeffs_ave = zeros(1, n_coeff);
+            obj.averaging.x_coeffs_var = zeros(1, n_coeff);
+            obj.averaging.x_coeffs_arr = zeros(obj.fourier.n_ave, n_coeff);
+            obj.averaging.out_coeffs_ave = zeros(1, n_coeff);
+            obj.averaging.out_coeffs_var = zeros(1, n_coeff);
+            obj.averaging.out_coeffs_arr = zeros(obj.fourier.n_ave, n_coeff);
             obj.averaging.last_freq = obj.get_par('forcing_freq');
             obj.averaging.timer = timer('BusyMode', 'drop', 'ExecutionMode', 'fixedRate', 'TimerFcn', @obj.update_averages);
             obj.averaging.timer.Period = max([round((1/obj.averaging.last_freq)*1000)/1000, 0.1]); % Limit to 10 Hz updates
@@ -96,11 +102,18 @@ classdef ntmd_interface < dspace_interface
 
             % Set the underlying device name
             obj.opt.device = [obj.opt.device ' - NTMD'];
+            
+            % Set the center point
+            obj.par.mass_centre = 135;
+            
+            % Set everything moving
+            obj.par.run = 1;
         end
 
         function delete(obj)
             % DELETE  Destroy the interface to dSpace.
             stop(obj.averaging.timer);
+            delete(obj.averaging.timer);
         end
         
         function update_averages(obj, varargin)
