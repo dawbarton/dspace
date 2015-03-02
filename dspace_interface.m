@@ -26,7 +26,7 @@ classdef (ConstructOnLoad) dspace_interface < handle
             % Add the time step to the list of dSpace variables
             obj.add_dspace_var('time_step', 'modelStepSize');
             % Add the sample frequency to the list of computed variables
-            obj.add_computed_var('sample_freq', @(x)round(1/x.get_par('time_step')));
+            obj.add_computed_var('sample_freq', @(x)(round(1/x.get_par('time_step'))));
             % Set the underlying device name
             obj.opt.device = 'dSpace';
         end
@@ -142,7 +142,7 @@ classdef (ConstructOnLoad) dspace_interface < handle
                 end
                 handles = [];
                 for i = 1:length(parameters)
-                    if isfield(obj.dspace_vars, parameters{i})
+                    if ~isfield(obj.dspace_vars, parameters{i})
                         error('Unknown variable for streaming: %s', parameters{i});
                     end
                     handles = [handles; obj.dspace_vars.(parameters{i})]; %#ok<AGROW>
@@ -212,9 +212,16 @@ classdef (ConstructOnLoad) dspace_interface < handle
             %
             % See also START_STREAM, GET_STREAM.
             p = inputParser();
-            p.addParameter('start', true, @islogical);
-            p.addParameter('wait_period', 0.1, @(x)(x > 0));
-            p.addParameter('struct', false, @islogical);
+            if ismethod(p, 'addParameter')
+                % New versions of Matlab
+                add_par = @p.addParameter;
+            else
+                % Old versions of Matlab
+                add_par = @p.addParamValue;
+            end
+            add_par('start', true, @islogical);
+            add_par('wait_period', 0.1, @(x)(x > 0));
+            add_par('struct', false, @islogical);
             p.parse(varargin{:});
             if p.Results.start
                 if ~obj.start_stream(stream)

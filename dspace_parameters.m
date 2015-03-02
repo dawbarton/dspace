@@ -4,7 +4,6 @@ classdef dspace_parameters < dynamicprops
     properties (Hidden)
         dspace_;
         str_;
-        names_;
     end
     
     methods
@@ -15,10 +14,6 @@ classdef dspace_parameters < dynamicprops
 
     methods
         function obj = dspace_parameters(dspace)
-            % function obj = rtc_parameters(dspace)
-            % 
-            % Construct a helper object to simplify access to parameters
-            
             obj.dspace_ = dspace;
             obj.str_ = 'Accessible dSpace parameters:\n';
         end
