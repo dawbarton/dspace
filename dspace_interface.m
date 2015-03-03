@@ -234,6 +234,15 @@ classdef (ConstructOnLoad) dspace_interface < handle
             data = obj.get_stream(stream, p.Results.struct);
         end
             
+        function b = saveobj(~)
+            b = [];
+        end
+    end
+    
+    methods (Static = true)
+        function a = loadobj(~)
+            a = [];
+        end
     end
     
 end
